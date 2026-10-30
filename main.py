@@ -254,7 +254,7 @@ def generate_key() -> bytes:
         salt=salt,
         iterations=390000,  # Recommended number of iterations
     )
-    key = base64.urlsafe_b64encode(kdf.derive(password))
+    key = kdf.derive(password)
     return key
 
 def main():
