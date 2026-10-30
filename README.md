@@ -1,7 +1,7 @@
 ![Banner](banner.png)
 
 # ds-an-data-masker
-A command-line tool that masks sensitive data fields (e.g., credit card numbers, phone numbers) in structured data formats (CSV, JSON) with consistent, reversible tokens using format-preserving encryption (FPE). - Focused on Tools for removing or obfuscating sensitive information from data sets. This includes generating synthetic data to replace real data, redacting specific data fields, and scrambling/masking PII to enable safe sharing and analysis of sensitive data. Intended for use cases like testing and debugging.
+A command-line tool that masks sensitive data fields (e.g., credit card numbers, phone numbers) in structured data formats (CSV, JSON) with reversible AES-CTR encryption. Output values are base64 and do not preserve the original format or length, and the same value encrypts differently on each run because a fresh IV is used per value. - Focused on Tools for removing or obfuscating sensitive information from data sets. This includes generating synthetic data to replace real data, redacting specific data fields, and scrambling/masking PII to enable safe sharing and analysis of sensitive data. Intended for use cases like testing and debugging.
 
 ## Install
 `git clone https://github.com/ShadowStrikeHQ/ds-an-data-masker`

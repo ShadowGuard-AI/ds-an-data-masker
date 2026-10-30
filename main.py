@@ -5,8 +5,6 @@ import logging
 import sys
 from typing import Dict, Any
 
-from faker import Faker
-from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -30,12 +28,16 @@ class DataMasker:
             key (bytes): The encryption key.
         """
         self.key = key
-        self.fake = Faker()
 
-    def format_preserving_encrypt(self, data: str) -> str:
+    def encrypt_value(self, data: str) -> str:
         """
-        Encrypts data using format-preserving encryption (FPE).
-        Uses AES in counter mode for encryption.
+        Encrypts one value with AES in counter mode and base64 encodes it.
+
+        This was previously named format-preserving encryption. It is
+        not: the output is a base64 blob considerably longer than the
+        input and preserves no character set, length, or format. It is
+        plain reversible encryption, and a fresh IV per call means the
+        same input value encrypts to a different output each time.
 
         Args:
             data (str): The data to be encrypted.
@@ -60,10 +62,9 @@ class DataMasker:
         # Concatenate IV and encrypted data, then encode to base64
         return base64.b64encode(iv + encrypted_data).decode('utf-8')
 
-    def format_preserving_decrypt(self, encrypted_data: str) -> str:
+    def decrypt_value(self, encrypted_data: str) -> str:
         """
-        Decrypts data that was encrypted using format-preserving encryption (FPE).
-        Uses AES in counter mode for decryption.
+        Decrypts a value produced by encrypt_value.
 
         Args:
             encrypted_data (str): The encrypted data to be decrypted.
@@ -115,9 +116,9 @@ class DataMasker:
             for key, value in data.items():
                 if key in fields_to_mask:
                     if isinstance(value, str):
-                        masked_data[key] = self.format_preserving_encrypt(value)
+                        masked_data[key] = self.encrypt_value(value)
                     else:
-                        masked_data[key] = self.format_preserving_encrypt(str(value))
+                        masked_data[key] = self.encrypt_value(str(value))
                 else:
                     masked_data[key] = value
             return masked_data
@@ -142,9 +143,9 @@ class DataMasker:
           for key, value in data.items():
               if key in fields_to_unmask:
                   if isinstance(value, str):
-                      unmasked_data[key] = self.format_preserving_decrypt(value)
+                      unmasked_data[key] = self.decrypt_value(value)
                   else:
-                      unmasked_data[key] = self.format_preserving_decrypt(str(value))
+                      unmasked_data[key] = self.decrypt_value(str(value))
               else:
                   unmasked_data[key] = value
           return unmasked_data
