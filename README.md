@@ -17,3 +17,7 @@ A command-line tool that masks sensitive data fields (e.g., credit card numbers,
 
 ## License
 Copyright (c) ShadowStrikeHQ
+
+## Notes
+- The output file must not be the input file. A run that names the input as the output is refused at exit 1 before any file is written.
+- A run that finds none of the named fields, or that would create no output file (for example a header only or empty CSV), exits 1 with a plain line saying nothing was processed or no output was written. It does not print the completion line.

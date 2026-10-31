@@ -3,6 +3,7 @@ import csv
 import json
 import logging
 import sys
+from pathlib import Path
 from typing import Dict, Any
 
 from cryptography.hazmat.primitives import hashes
@@ -28,6 +29,7 @@ class DataMasker:
             key (bytes): The encryption key.
         """
         self.key = key
+        self.masked_count = 0
 
     def encrypt_value(self, data: str) -> str:
         """
@@ -115,6 +117,7 @@ class DataMasker:
             masked_data = {}
             for key, value in data.items():
                 if key in fields_to_mask:
+                    self.masked_count += 1
                     if isinstance(value, str):
                         masked_data[key] = self.encrypt_value(value)
                     else:
@@ -142,6 +145,7 @@ class DataMasker:
           unmasked_data = {}
           for key, value in data.items():
               if key in fields_to_unmask:
+                  self.masked_count += 1
                   if isinstance(value, str):
                       unmasked_data[key] = self.decrypt_value(value)
                   else:
@@ -218,7 +222,7 @@ def write_data(data: Any, output_file: str):
         if output_file.endswith(".csv"):
             if not data:
                 logging.warning("No data to write to CSV file.")
-                return
+                return False
 
             if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
                 raise ValueError("Data must be a list of dictionaries for CSV output.")
@@ -228,10 +232,12 @@ def write_data(data: Any, output_file: str):
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(data)
+            return True
 
         elif output_file.endswith(".json"):
             with open(output_file, 'w') as jsonfile:
                 json.dump(data, jsonfile, indent=4)
+            return True
         else:
             raise ValueError("Unsupported file format. Only CSV and JSON are supported.")
     except Exception as e:
@@ -264,6 +270,10 @@ def main():
     """
     parser = setup_argparse()
     args = parser.parse_args()
+
+    if Path(args.input_file).resolve() == Path(args.output_file).resolve():
+        logging.error("Output file must not be the input file. Choose a different output file.")
+        sys.exit(1)
 
     try:
         # Determine the encryption key source (file, CLI, or generate new)
@@ -303,8 +313,16 @@ def main():
         else:
             masked_data = masker.mask_data(data, args.fields_to_mask)
 
+        if masker.masked_count == 0:
+            logging.error("Nothing was processed: no named field was found in the input. No output file was written.")
+            sys.exit(1)
+
         # Write the masked/unmasked data to the output file
-        write_data(masked_data, args.output_file)
+        written = write_data(masked_data, args.output_file)
+
+        if not written or not Path(args.output_file).is_file():
+            logging.error("No output file was created. Nothing was written.")
+            sys.exit(1)
 
         logging.info(f"Data processing complete. Output written to: {args.output_file}")
 
