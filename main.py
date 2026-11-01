@@ -89,7 +89,14 @@ class DataMasker:
             # Decrypt the data
             decrypted_data = decryptor.update(encrypted_data_without_iv) + decryptor.finalize()
 
-            # Remove padding
+            # CTR mode needs no padding at all; the pad above exists only
+            # because the encrypt side adds it, and this strip relies on the
+            # last byte being that pad count. There is no authentication
+            # anywhere in the scheme, so a wrong key or a tampered blob is
+            # not detected as either: decryption produces garbage bytes,
+            # the decode below usually fails, and the field comes back None
+            # rather than raising. A None in unmasked output means a value
+            # that did not survive, and it still counted as processed.
             padding_length = decrypted_data[-1]
             if padding_length > 0 and padding_length <= 16:
                 decrypted_data = decrypted_data[:-padding_length]
@@ -114,6 +121,12 @@ class DataMasker:
         if isinstance(data, list):
             return [self.mask_data(item, fields_to_mask) for item in data]
         elif isinstance(data, dict):
+            # Only this level is searched. A field with a masked name that
+            # sits inside a nested object under an unmasked key is copied
+            # through untouched, because the else below takes the value as
+            # it is and nothing recurses into it. If a masked key itself
+            # holds an object, the whole object is stringified and encrypted
+            # as one blob.
             masked_data = {}
             for key, value in data.items():
                 if key in fields_to_mask:
@@ -252,6 +265,12 @@ def generate_key() -> bytes:
     Returns:
         bytes: The generated encryption key.
     """
+    # I will not dress this up: the password is a fixed string in the
+    # source, and the salt drawn for it is thrown away when this returns.
+    # So the derivation can never be repeated, and the printed key in main
+    # is the only copy that will ever exist. Lose that line of output and
+    # everything masked with the key is unrecoverable; the password and the
+    # 390000 iterations contribute nothing a caller can reproduce.
     password_provided = "default_password"  # Replace with a more secure method
     password = password_provided.encode()
     salt = os.urandom(16)  # Generate a unique salt for each key generation
